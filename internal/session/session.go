@@ -47,8 +47,14 @@ func Launch(unlockManager *unlocks.Manager) (*Session, error) {
 
 	sess.wg.Add(1)
 	go func() {
-		sess.cmd.Wait()
-		sess.ipc.Close()
+		err = sess.cmd.Wait()
+		if err != nil {
+			log.Printf("stepmania child process: %+v", err)
+		}
+		err = sess.ipc.Close()
+		if err != nil {
+			log.Printf("ipc: %+v", err)
+		}
 		sess.wg.Done()
 	}()
 
@@ -120,6 +126,8 @@ func (sess *Session) startSM() error {
 	cmd := exec.Command(smExePath)
 	cmd.Dir = filepath.Dir(smExePath)
 
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
 	err := cmd.Start()
 	if err != nil {
 		return err
