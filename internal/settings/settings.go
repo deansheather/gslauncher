@@ -2,6 +2,7 @@ package settings
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -101,13 +102,20 @@ func Get() Settings {
 	return settings
 }
 
-func Load() error {
+func SettingsFile() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	settingsPath := filepath.Join(configDir, "groovestats-launcher", "settings.json")
+	return filepath.Join(configDir, "groovestats-launcher", "settings.json"), nil
+}
+
+func Load() error {
+	settingsPath, err := SettingsFile()
+	if err != nil {
+		return fmt.Errorf("get settings path: %w", err)
+	}
 
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
@@ -145,14 +153,12 @@ func DetectSM() {
 }
 
 func Save() error {
-	configDir, err := os.UserConfigDir()
+	settingsPath, err := SettingsFile()
 	if err != nil {
-		return err
+		return fmt.Errorf("get settings path: %w", err)
 	}
 
-	settingsDir := filepath.Join(configDir, "groovestats-launcher")
-	settingsPath := filepath.Join(settingsDir, "settings.json")
-
+	settingsDir := filepath.Dir(settingsPath)
 	info, err := os.Stat(settingsDir)
 	if err != nil || !info.IsDir() {
 		err := os.Mkdir(settingsDir, os.ModeDir|0700)

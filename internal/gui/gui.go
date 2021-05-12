@@ -174,12 +174,13 @@ func NewApp(unlockManager *unlocks.Manager, autolaunch bool) *App {
 	return app
 }
 
-func (app *App) Run() {
+func (app *App) Run() error {
 	if app.autolaunch {
 		app.launchSM()
 	}
 
 	app.app.Run()
+	return nil
 }
 
 func (app *App) launchSM() {

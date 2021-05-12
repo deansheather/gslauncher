@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/GrooveStats/gslauncher/internal/gui"
+	"github.com/GrooveStats/gslauncher/internal/headless"
 	"github.com/GrooveStats/gslauncher/internal/settings"
 	"github.com/GrooveStats/gslauncher/internal/unlocks"
 	"github.com/GrooveStats/gslauncher/internal/version"
@@ -55,22 +56,50 @@ func redirectLog() {
 
 func main() {
 	autolaunch := flag.Bool("autolaunch", false, "automatically launch StepMania")
+	headlessMode := flag.Bool("headless", false, "launch without GUI window (implies --autolaunch)")
 	flag.Parse()
+	if *headlessMode {
+		*autolaunch = true
+	}
 
-	redirectLog()
-	log.Printf("GrooveStats Launcher %s (%s %s)", version.Formatted(), runtime.GOOS, runtime.GOARCH)
+	modeStr := "headless"
+	if !*headlessMode {
+		modeStr = "gui"
+		redirectLog()
+	}
+	log.Printf("GrooveStats Launcher (%s mode) %s (%s %s)", modeStr, version.Formatted(), runtime.GOOS, runtime.GOARCH)
 
-	settings.Load()
-	if settings.Get().FirstLaunch {
+	err := settings.Load()
+	if os.IsNotExist(err) {
+		settingsPath, err := settings.SettingsFile()
+		if err != nil {
+			log.Fatalf("get settings path: %+v", err)
+		}
+
 		settings.DetectSM()
+
+		log.Printf("writing default settings file to %v", settingsPath)
+		err = settings.Save()
+		if err != nil {
+			log.Fatalf("write settings: %+v", err)
+		}
+	} else if err != nil {
+		log.Fatalf("failed to load settings: %+v", err)
 	}
 
 	unlockManager, err := unlocks.NewManager()
 	if err != nil {
-		log.Print("failed to initialize downloader: ", err)
-		return
+		log.Fatalf("failed to initialize downloader: %+v", err)
 	}
 
-	app := gui.NewApp(unlockManager, *autolaunch)
-	app.Run()
+	if *headlessMode {
+		app := headless.NewApp(unlockManager)
+		err = app.Run()
+	} else {
+		app := gui.NewApp(unlockManager, *autolaunch)
+		err = app.Run()
+	}
+	if err != nil {
+		log.Fatalf("run %v app: %+v", modeStr, err)
+	}
 }
